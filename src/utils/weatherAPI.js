@@ -1,3 +1,4 @@
+//Not authorized under free plan
 export async function getCoords(cityName, apiKey) {
     console.log("Feching coordinates data...");
   const url = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(cityName)}&limit=1&appid=${apiKey}`;

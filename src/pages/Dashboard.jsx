@@ -30,6 +30,9 @@ export default function Dashboard() {
   const [hasSearched, setHasSearched] = useState(false)
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
   const [lastCity, setLastCity] = useState('')
+  const [manualLat, setManualLat] = useState('')
+  const [manualLon, setManualLon] = useState('')
+
 
   // const [debouncedCity] = useDebounce(city, 200)
   // const [suggestions, setSuggestions] = useState([]);
@@ -80,7 +83,7 @@ export default function Dashboard() {
 
     try {
       //fetching for Chennai by default
-      const weatherData = await fetchWeather(13.08, 80.27, API_KEY)
+      const weatherData = await fetchWeather(manualLat, manualLon, API_KEY)
       const forecast = parseForecastData(weatherData)
       setWeather(forecast)
       setHasSearched(true)
@@ -152,6 +155,62 @@ export default function Dashboard() {
               disabled={isOffline}
             >
               <TiWeatherSunny />
+            </IconButton>
+          </Flex>
+          <Text fontWeight={'extrabold'} color={'gray.500'}>OR</Text>
+          <Flex gap={2}>  
+            <Input
+              placeholder="Latitude"
+              type="number"
+              value={manualLat}
+              onChange={(e) => setManualLat(e.target.value)}
+              border="1px solid #ff9040"
+              bg="white"
+              borderRadius={10}
+            />
+            <Input
+              placeholder="Longitude"
+              type="number"
+              value={manualLon}
+              onChange={(e) => setManualLon(e.target.value)}
+              border="1px solid #ff9040"
+              bg="white"
+              borderRadius={10}
+            />
+            <IconButton
+              aria-label="Search by coordinates"
+              onClick={async () => {
+                if (!manualLat || !manualLon) return
+                setIsLoading(true)
+                setLastCity(`${manualLat},${manualLon}`)
+                try {
+                  const weatherData = await fetchWeather(
+                    parseFloat(manualLat),
+                    parseFloat(manualLon),
+                    API_KEY
+                  )
+                  const forecast = parseForecastData(weatherData)
+                  setWeather(forecast)
+                  setHasSearched(true)
+                  setCity('')
+                } catch (err) {
+                  toaster.create({
+                    description: 'Failed to fetch data for coordinates.',
+                    type: 'error',
+                    closable: true,
+                  })
+                } finally {
+                  setIsLoading(false)
+                }
+              }}
+              bg="#ff9040"
+              color="white"
+              _hover={{ bg: '#e27b30' }}
+              fontSize={12}
+              px={2}
+              fontWeight={'bold'}
+            >
+              Check
             </IconButton>
           </Flex>
 
