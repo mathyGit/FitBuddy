@@ -15,6 +15,7 @@ Under free tier plan only Forecast5 API call is allowed.
 
 **Features**
 * Weather data for Chennai using API
+* Fetching weather data based on co-ordinates
 * Search history
 * Dark/light mode
 * Clean UI
