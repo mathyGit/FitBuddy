@@ -6,108 +6,110 @@ import {
   Box,
   Text,
   VStack,
+  Spinner,
 } from '@chakra-ui/react'
 import { useState } from 'react'
 import { useColorModeValue } from '../components/ui/color-mode'
-import { TiWeatherSunny } from "react-icons/ti";
+import { TiWeatherSunny } from 'react-icons/ti'
 import DashboardLayout from '../components/layouts/DashboardLayout'
+import { getCoords, fetchWeather } from '../utils/weatherAPI'
+import { toaster } from '@/components/ui/toaster'
+import { parseForecastData } from '@/utils/parseForecast'
+import { ForecastList } from '@/components/ForecastList'
 
 export default function Dashboard() {
   const [city, setCity] = useState('')
-  const [weather, setWeather] = useState(null)
+  const [weather, setWeather] = useState([])
   const [history, setHistory] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
+
+  const API_KEY = "4b2f10809278e611fada6ff1bdd1129a";
 
   const handleSearch = async () => {
     if (!city.trim()) return
+    setIsLoading(true);
 
-    // Mocked API result — will replace with real API later
-    const fakeWeather = {
-      city: city,
-      temp: 28,
-      condition: 'Sunny',
-      wind: 10,
-      humidity: 45,
+    try {
+      //This is not available for free plan
+      // console.log("Getting coordinates...");
+      // const { lat, lon } = await getCoords(city, API_KEY);
+      // console.log(`Coordinates: lat=${lat}, lon=${lon}`);
+
+      console.log("Getting weather data...");
+      //latitude and longitude values for Chennai
+      const weatherData = await fetchWeather(13.08, 80.27, API_KEY);
+      console.log("Weather data:", weatherData);
+      const forecast = parseForecastData(weatherData);
+      console.log(forecast);
+      setWeather(forecast);
+
+     
+
+      setHistory(prev =>
+        [city, ...prev.filter(c => c !== city)].slice(0, 5)
+      )
+
+      setCity('')
+    } catch (err) {
+      toaster.create({
+          description: "File saved successfully",
+          type: "info",
+          closable: true,
+        })
+    } finally {
+      setIsLoading(false)
     }
-
-    setWeather(fakeWeather)
-    setHistory((prev) => {
-      const updated = [city, ...prev.filter((c) => c !== city)]
-      return updated.slice(0, 5)
-    })
-
-    setCity('')
   }
 
   return (
     <DashboardLayout>
       <VStack spacing={6} align="stretch">
-        {/* Search Input */}
-          <Flex w="100%" maxW="md">
-            <Input
-                borderRightRadius="0"
-                borderLeftRadius={10}
-                placeholder="Enter city name"
-                value={city}
-                bg={useColorModeValue('white', 'orange.100')}
-                border={'1px solid #ff9040'}
-                onChange={(e) => setCity(e.target.value)}
-            />
-            <IconButton
-                borderLeftRadius="0"
-                icon={<Icon as={TiWeatherSunny} />}
-                bg={'#ff9040'}
-                onClick={handleSearch}
-                aria-label="Search city"
-            />
-            </Flex>
+        <Flex w="100%" maxW="md">
+          <Input
+            borderRightRadius="0"
+            borderLeftRadius="10px"
+            placeholder="Enter city name"
+            value={city}
+            bg={useColorModeValue('white', 'orange.100')}
+            border="1px solid #ff9040"
+            onChange={e => setCity(e.target.value)}
+          />
+          <IconButton
+            borderLeftRadius="0"
+            bg="#ff9040"
+            color="white"
+            _hover={{ bg: '#e27b30' }}
+            onClick={handleSearch}
+            aria-label="Search city"
+          ><TiWeatherSunny/></IconButton>
+        </Flex>
 
-        {/* Weather Display */}
-        {weather && (
-          <Box
-            bg={useColorModeValue('whiteAlpha.900', 'orange.100')}
-            rounded="lg"
-            shadow="md"
-            p={6}
-          >
-            <Text fontSize="2xl" fontWeight="bold" mb={2}>
-              {weather.city}
-            </Text>
-            <Text>🌡️ Temperature: {weather.temp}°C</Text>
-            <Text>🌥️ Condition: {weather.condition}</Text>
-            <Text>💨 Wind: {weather.wind} km/h</Text>
-            <Text>💧 Humidity: {weather.humidity}%</Text>
-            <Text mt={3} fontWeight="medium">
-              {getOutfitSuggestion(weather)}
-            </Text>
-          </Box>
+        {isLoading && (
+          <Flex justify="center">
+            <Spinner size="lg" color="orange.400" />
+          </Flex>
         )}
 
-        {/* Search History */}
-        {/* {history.length > 0 && (
+  {/* displaying the forecast cards */}
+        {weather && !isLoading && (
+          <ForecastList forecastData={weather} />
+        )}
+
+        {history.length > 0 && (
           <Box>
-            <Text fontWeight="semibold" mb={2}>
+            <Text fontWeight="semibold" mb={2} color={useColorModeValue('grey.800','white')}>
               Recent Searches
             </Text>
             <VStack align="start" spacing={1}>
-              {history.map((item, index) => (
-                <Text key={index} fontSize="sm">
+              {history.map((item, i) => (
+                <Text key={i} fontSize="sm" color={useColorModeValue('grey.800','white')}>
                   • {item}
                 </Text>
               ))}
             </VStack>
           </Box>
-        )} */}
+        )}
       </VStack>
     </DashboardLayout>
   )
-}
-
-function getOutfitSuggestion(weather) {
-  const condition = weather.condition.toLowerCase()
-  const temp = weather.temp
-
-  if (condition.includes('rain')) return '🌧️ Take an umbrella!'
-  if (temp <= 10) return '🧥 Wear a warm jacket.'
-  if (temp >= 30) return '😎 Sunglasses suggested!'
-  return '👕 Comfortable clothing should be fine.'
 }
