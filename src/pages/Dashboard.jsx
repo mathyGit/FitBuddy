@@ -1,49 +1,89 @@
 import {
   Input,
-  Icon,
   Flex,
   IconButton,
   Box,
   Text,
   VStack,
   Spinner,
+  Heading,
+  Alert,
+  List,
+  ListItem
 } from '@chakra-ui/react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useColorModeValue } from '../components/ui/color-mode'
 import { TiWeatherSunny } from 'react-icons/ti'
 import DashboardLayout from '../components/layouts/DashboardLayout'
-import { getCoords, fetchWeather } from '../utils/weatherAPI'
+import { fetchWeather } from '../utils/weatherAPI'
 import { toaster } from '@/components/ui/toaster'
 import { parseForecastData } from '@/utils/parseForecast'
 import { ForecastList } from '@/components/ForecastList'
+// import { useDebounce } from 'use-debounce'
+// import { CityData } from '@/components/mock/cities'
 
 export default function Dashboard() {
   const [city, setCity] = useState('')
   const [weather, setWeather] = useState([])
   const [history, setHistory] = useState([])
   const [isLoading, setIsLoading] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+  const [isOffline, setIsOffline] = useState(!navigator.onLine)
+  const [lastCity, setLastCity] = useState('')
 
+  // const [debouncedCity] = useDebounce(city, 200)
+  // const [suggestions, setSuggestions] = useState([]);
+  // const [selectedCity, setSelectedCity] = useState(null);
   const API_KEY = "4b2f10809278e611fada6ff1bdd1129a";
 
+//   useEffect(() => {
+//   if (debouncedCity.length > 1) {
+//     const matches = CityData.filter(c =>
+//       c.name.toLowerCase().includes(debouncedCity.toLowerCase())
+//     ).slice(0, 5); // limits to top 5 suggestions
+//     setSuggestions(matches);
+//   } else {
+//     setSuggestions([]);
+//   }
+// }, [debouncedCity]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false)
+      toaster.create({
+          description: "Back online!",
+          type: "success",
+          closable: true,
+        })
+    }
+
+    const handleOffline = () => {
+      setIsOffline(true)
+      toaster.create({
+          description: "You are offline.",
+          type: "warning",
+          closable: true,
+        })
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
   const handleSearch = async () => {
-    if (!city.trim()) return
-    setIsLoading(true);
+    if (!city.trim() || isOffline ) return;
+    setIsLoading(true)
 
     try {
-      //This is not available for free plan
-      // console.log("Getting coordinates...");
-      // const { lat, lon } = await getCoords(city, API_KEY);
-      // console.log(`Coordinates: lat=${lat}, lon=${lon}`);
-
-      console.log("Getting weather data...");
-      //latitude and longitude values for Chennai
-      const weatherData = await fetchWeather(13.08, 80.27, API_KEY);
-      console.log("Weather data:", weatherData);
-      const forecast = parseForecastData(weatherData);
-      console.log(forecast);
-      setWeather(forecast);
-
-     
+      //fetching for Chennai by default
+      const weatherData = await fetchWeather(13.08, 80.27, API_KEY)
+      const forecast = parseForecastData(weatherData)
+      setWeather(forecast)
+      setHasSearched(true)
 
       setHistory(prev =>
         [city, ...prev.filter(c => c !== city)].slice(0, 5)
@@ -52,10 +92,10 @@ export default function Dashboard() {
       setCity('')
     } catch (err) {
       toaster.create({
-          description: "File saved successfully",
-          type: "info",
-          closable: true,
-        })
+        description: 'Failed to fetch data. Try again later.',
+        type: 'error',
+        closable: true,
+      })
     } finally {
       setIsLoading(false)
     }
@@ -64,50 +104,127 @@ export default function Dashboard() {
   return (
     <DashboardLayout>
       <VStack spacing={6} align="stretch">
-        <Flex w="100%" maxW="md">
-          <Input
-            borderRightRadius="0"
-            borderLeftRadius="10px"
-            placeholder="Enter city name"
-            value={city}
-            bg={useColorModeValue('white', 'orange.100')}
-            border="1px solid #ff9040"
-            onChange={e => setCity(e.target.value)}
-          />
-          <IconButton
-            borderLeftRadius="0"
-            bg="#ff9040"
-            color="white"
-            _hover={{ bg: '#e27b30' }}
-            onClick={handleSearch}
-            aria-label="Search city"
-          ><TiWeatherSunny/></IconButton>
-        </Flex>
-
-        {isLoading && (
-          <Flex justify="center">
-            <Spinner size="lg" color="orange.400" />
-          </Flex>
+        {isOffline && (
+          <Alert status="warning" borderRadius="md">
+            <Alert.Indicator />
+            You're offline. Please check your internet connection.
+          </Alert>
         )}
 
-  {/* displaying the forecast cards */}
-        {weather && !isLoading && (
+        <VStack spaceY={4}>
+          {!hasSearched && !isLoading && (
+            <VStack spaceY={0}>
+              <Heading size="2xl" fontWeight="extrabold" color="#ff9040">
+                Welcome to FitBuddy!
+              </Heading>
+              <Text
+                fontSize="lg"
+                textAlign="center"
+                color={useColorModeValue('gray.600', 'gray.300')}
+                mt={6}
+              >
+                Enter a city name to get the latest forecast and outfit suggestions!
+              </Text>
+            </VStack>
+          )}
+
+          <Flex w="100%" maxW="md">
+            <Input
+              borderRightRadius="0"
+              borderLeftRadius="10px"
+              placeholder="Enter city name"
+              color="orange.800"
+              value={city}
+              bg="white"
+              border="1px solid #ff9040"
+              _dark={{ border: 'none' }}
+              onChange={e => setCity(e.target.value)}
+              disabled={isOffline}
+            />
+
+            <IconButton
+              borderLeftRadius="0"
+              bg="#ff9040"
+              color="white"
+              _hover={{ bg: '#e27b30' }}
+              onClick={handleSearch}
+              aria-label="Search city"
+              disabled={isOffline}
+            >
+              <TiWeatherSunny />
+            </IconButton>
+          </Flex>
+
+          {isLoading && (
+            <Flex justify="center">
+              <Spinner size="lg" color="orange.400" />
+            </Flex>
+          )}
+        </VStack>
+
+        {/* Forecast cards */}
+        {hasSearched && weather.length > 0 && !isLoading && (
           <ForecastList forecastData={weather} />
         )}
 
+        {/* Retry logic if fetch failed */}
+        {!isOffline && hasSearched && !weather.length && !isLoading && (
+          <Box textAlign="center" mt={4}>
+            <Text color="orange.600" mb={2}>
+              Couldn't load weather data.
+            </Text>
+            <IconButton
+              icon={<TiWeatherSunny />}
+              onClick={() => {
+                setCity(lastCity)
+                handleSearch()
+              }}
+              colorScheme="orange"
+              aria-label="Retry"
+            />
+          </Box>
+        )}
+
+        {/* Recent searches */}
         {history.length > 0 && (
-          <Box>
-            <Text fontWeight="semibold" mb={2} color={useColorModeValue('grey.800','white')}>
+          <VStack align="start" spacing={1}>
+            <Text fontWeight="bold" fontSize="sm" color="orange.400">
               Recent Searches
             </Text>
-            <VStack align="start" spacing={1}>
-              {history.map((item, i) => (
-                <Text key={i} fontSize="sm" color={useColorModeValue('grey.800','white')}>
-                  • {item}
-                </Text>
-              ))}
-            </VStack>
-          </Box>
+            {history.map((item, i) => (
+              <Text
+                key={i}
+                fontSize="sm"
+                color={useColorModeValue('gray.800', 'white')}
+                cursor="pointer"
+                _hover={{ textDecoration: 'underline', color: 'orange.400' }}
+                onClick={async () => {
+                  setIsLoading(true)
+                  setLastCity(item)
+                  try {
+                    const weatherData = await fetchWeather(13.08, 80.27, API_KEY)
+                    const forecast = parseForecastData(weatherData)
+                    setWeather(forecast)
+                    setHasSearched(true)
+                    setHistory(prev =>
+                      [item, ...prev.filter(c => c !== item)].slice(0, 5)
+                    )
+                    setCity('')
+                  } catch (err) {
+                    toaster.create({
+                      description: 'Something went wrong',
+                      type: 'error',
+                      closable: true,
+                    })
+                  } finally {
+                    setIsLoading(false)
+                  }
+                }}
+              >
+                • {item}
+              </Text>
+            ))}
+          </VStack>
         )}
       </VStack>
     </DashboardLayout>
